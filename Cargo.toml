@@ -1,0 +1,11 @@
+[package]
+name = "denoise-solver"
+version = "0.1.0"
+edition = "2021"
+authors = ["Lílian Ferreira de Freitas <lily.mosquitoes@gmail.com>", "Emilia L. K. Blåsten <emilia.blasten@iki.fi>"]
+license = "AGPL-3.0-or-later"
+readme = "README.md"
+
+[dependencies]
+clap = { version = "3.1", features = ["derive"] }
+image-recovery = "0.1"
