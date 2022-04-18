@@ -19,9 +19,10 @@ use image_recovery::{
 /// Stopping conditions:
 ///
 /// The algorithm will run for at most `max_iter` number
-/// of iterations, but may stop early if the convergence
-/// value becomes smaller than the given value for the
-/// `convergence_threshold`
+/// of iterations per λ value, but may stop earlier if the
+/// relative differente between the current candidate output
+/// and the previous iteration's candidate output becomes
+/// smaller than the given value for the `convergence_threshold`
 #[derive(Parser, Debug)]
 #[clap(author, version, about)]
 struct Cli {
