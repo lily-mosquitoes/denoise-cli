@@ -7,7 +7,7 @@ use image_recovery::{
     solvers,
 };
 
-/// Runner for denoising algorithm.
+/// CLI wrapper for the denoising algorithm from image-recovery.
 ///
 /// λ values:
 ///

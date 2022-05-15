@@ -1,4 +1,4 @@
-# Denoise solver
+# Denoise-cli
 
 A command-line utility for running a multichannel denoising algorithm (from [image-recovery](https://docs.rs/image/latest/image/)).
 
@@ -6,7 +6,7 @@ A command-line utility for running a multichannel denoising algorithm (from [ima
 
 You can check the necessary input parameters at any time by running:
 
-`denoise-solver --help`
+`denoise-cli --help`
 
 Basically, you need to supply:
 - an input image,
@@ -19,7 +19,7 @@ Basically, you need to supply:
 
 You can do that like so:
 
-`denoise-solver -i angry_birb_noisy.png -o . -s 0.001 -e 0.08 -t 20 -m 1000 -c 10e-10`
+`denoise-cli -i angry_birb_noisy.png -o . -s 0.001 -e 0.08 -t 20 -m 1000 -c 10e-10`
 
 - This will produce 20 images, the first using `λ = 0.001` and the last using `λ = 0.08`, with the images in between using intermediary values of `λ` spread geometrically.
 
