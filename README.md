@@ -1,6 +1,6 @@
 # Denoise-cli
 
-A command-line utility for running a multichannel denoising algorithm (from [image-recovery](https://docs.rs/image/latest/image/)).
+A command-line utility for running a multichannel denoising algorithm (from [image-recovery](https://docs.rs/image-recovery/0.1.0/image_recovery/)).
 
 ## How to use:
 
@@ -9,13 +9,13 @@ You can check the necessary input parameters at any time by running:
 `denoise-cli --help`
 
 Basically, you need to supply:
-- an input image,
-- the directory where you want the output images to be,
-- a starting value for `λ`,
-- an ending value for `λ`,
-- how many values of `λ` should be used (steps),
-- the maximum amount of iterations to run for each value of `λ`,
-- the convergence threshold for exiting the algorithm.
+- `-i` an input image,
+- `-o` the directory where you want the output images to be,
+- `-s` a starting value for `λ`,
+- `-e` an ending value for `λ`,
+- `-t` how many values of `λ` should be used (steps),
+- `-m` the maximum amount of iterations to run for each value of `λ`,
+- `-c` the convergence threshold for exiting the algorithm.
 
 You can do that like so:
 
@@ -24,3 +24,28 @@ You can do that like so:
 - This will produce 20 images, the first using `λ = 0.001` and the last using `λ = 0.08`, with the images in between using intermediary values of `λ` spread geometrically.
 
 Have fun! :sparkles:
+
+## Example:
+
+Running:
+
+`./denoise-cli -i birb_noisy.png -o . -s 0.001 -e 0.08 -t 5 -m 1000 -c 10e-10`
+
+Results in:
+
+|λ = 0.0010000000|λ = 0.0029906976|λ = 0.0089442719|λ = 0.0267496122|λ = 0.0800000000|
+|---|---|---|---|---|
+|![Denoised image with λ = 0.0010000000](https://imgur.com/BO0iGTk.png)|![Denoised image with λ = 0.0029906976](https://imgur.com/OS0yUbv.png)|![Denoised image with λ = 0.0089442719](https://imgur.com/3ByU8xj.png)|![Denoised image with λ = 0.0267496122](https://imgur.com/KN2lyRT.png)|![Denoised image with λ = 0.0800000000](https://imgur.com/EDoFNud.png)|
+
+Input image source: [birb_noisy.png](https://imgur.com/amvPNoJ) by Markus S. Juvonen under License [CC-BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). Gaussian noise was added to the original image using GIMP.
+
+Resulting images found [here](https://imgur.com/a/PISh6XQ). Copyright by Markus S. Juvonen under License [CC-BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). Gaussian noise was added to the original image using GIMP; Noisy image was denoised using the denoising algorithm from the [image-recovery library](https://docs.rs/image-recovery/0.1.0/image_recovery/).
+
+## Copyright
+
+This code is licensed under the GNU Affero General Public License version 3 or later. See [LICENSE](LICENSE) or https://www.gnu.org/licenses/agpl-3.0.en.html.
+
+## Acknowledgements
+
+This is a CLI wrapper for the denoising algorithm in the library [image-recovery](https://github.com/lily-mosquitoes/image-recovery): code by [Lílian Ferreira de Freitas](https://github.com/lily-mosquitoes),
+mathematics by [Emilia L. K. Blåsten](https://orcid.org/0000-0001-6675-6108)
