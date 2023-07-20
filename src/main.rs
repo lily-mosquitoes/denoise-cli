@@ -15,7 +15,11 @@
 
 #![feature(path_file_prefix)]
 
-use clap::{Parser, CommandFactory, ErrorKind};
+use clap::{
+    CommandFactory,
+    ErrorKind,
+    Parser,
+};
 use image_recovery::{
     image,
     img::Manipulation,
@@ -69,24 +73,37 @@ fn main() {
     let mut cmd = Cli::command();
 
     if !args.input_image.is_file() {
-        cmd.error(ErrorKind::ValueValidation, "`input_image` must bet a valid file").exit();
+        cmd.error(
+            ErrorKind::ValueValidation,
+            "`input_image` must bet a valid file",
+        )
+        .exit();
     }
 
     if !args.output_folder.is_dir() {
-        cmd.error(ErrorKind::ValueValidation, "`output_path` must be a valid directory").exit();
+        cmd.error(
+            ErrorKind::ValueValidation,
+            "`output_path` must be a valid directory",
+        )
+        .exit();
     }
 
     if !(args.start_lambda < args.end_lambda) {
-        cmd.error(ErrorKind::ValueValidation, "`start_lambda` must be smaller than `end_lambda`").exit();
+        cmd.error(
+            ErrorKind::ValueValidation,
+            "`start_lambda` must be smaller than `end_lambda`",
+        )
+        .exit();
     }
 
     if !(args.steps > 0) {
-        cmd.error(ErrorKind::ValueValidation, "`steps` must be bigger than 0").exit();
+        cmd.error(ErrorKind::ValueValidation, "`steps` must be bigger than 0")
+            .exit();
     }
 
     let img = image::open(&args.input_image)
-            .expect("image could not be open")
-            .into_rgb8();
+        .expect("image could not be open")
+        .into_rgb8();
 
     // load the RGB image into an object which is composed
     // of 3 matrices, one for each channel
@@ -103,7 +120,7 @@ fn main() {
 
     // calculate `q`, the multiplier for the number of steps
     let q = (args.end_lambda / args.start_lambda)
-        .powf(1_f64 / (args.steps-1) as f64);
+        .powf(1_f64 / (args.steps - 1) as f64);
 
     for step in 0..args.steps {
         // calculate the lambda to use
@@ -117,16 +134,31 @@ fn main() {
         let gamma: f64 = 0.35 * lambda;
 
         // now we can call the denoising solver with the chosen variables
-        let denoised = solvers::denoise_multichannel(&img_matrices, lambda, tau, sigma, gamma, args.max_iter, args.convergence_threshold);
+        let denoised = solvers::denoise_multichannel(
+            &img_matrices,
+            lambda,
+            tau,
+            sigma,
+            gamma,
+            args.max_iter,
+            args.convergence_threshold,
+        );
 
         // we convert the solution into an RGB image format
         let new_img = image::RgbImage::from_matrices(&denoised);
 
         // encode it and save it to a file
-        let file_name = format!("{}_lambda_=_{:.10}.png", args.input_image.file_prefix().unwrap().to_str().unwrap(), lambda);
-        args.output_folder.set_file_name(file_name);
+        let input_image_basename = args
+            .input_image
+            .file_prefix()
+            .unwrap_or(std::ffi::OsStr::new("img"))
+            .to_string_lossy();
+        let file_name =
+            format!("{}_lambda_=_{:.10}.png", input_image_basename, lambda);
+        args.output_folder.push(file_name);
 
-        new_img.save(&args.output_folder)
+        new_img
+            .save(&args.output_folder)
             .expect("image could not be saved");
     }
 }
