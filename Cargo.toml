@@ -1,6 +1,6 @@
 [package]
 name = "denoise-cli"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Lílian Ferreira de Freitas <lily.mosquitoes@gmail.com>"]
 description = "CLI wrapper for the denoising algorithm from image-recovery."
