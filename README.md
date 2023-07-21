@@ -9,17 +9,23 @@ You can check the necessary input parameters at any time by running:
 `denoise-cli --help`
 
 Basically, you need to supply:
-- `-i` an input image,
-- `-o` the directory where you want the output images to be,
-- `-s` a starting value for `λ`,
-- `-e` an ending value for `λ`,
-- `-t` how many values of `λ` should be used (steps),
-- `-m` the maximum amount of iterations to run for each value of `λ`,
-- `-c` the convergence threshold for exiting the algorithm.
+- `-i` an [i]nput image,
+- `-o` the directory where you want the [o]utput images to be,
+- `-s` a [s]tarting value for `λ`,
+- `-e` an [e]nding value for `λ`,
+- `-t` how many values of `λ` should be used (s[t]eps),
+- `-m` the [m]aximum amount of iterations to run for each value of `λ`,
+- `-c` the [c]onvergence threshold for exiting the algorithm.
+
+Optionally you may supply the verbosity level of the output:
+- `-v` for WARN,
+- `-vv` for INFO,
+- `-vvv` for DEBUG,
+- `-vvvv` for TRACE,
 
 You can do that like so:
 
-`denoise-cli -i angry_birb_noisy.png -o . -s 0.001 -e 0.08 -t 20 -m 1000 -c 10e-10`
+`denoise-cli -vv -i angry_birb_noisy.png -o . -s 0.001 -e 0.08 -t 20 -m 1000 -c 10e-10`
 
 - This will produce 20 images, the first using `λ = 0.001` and the last using `λ = 0.08`, with the images in between using intermediary values of `λ` spread geometrically.
 
