@@ -15,15 +15,20 @@
 
 #![feature(path_file_prefix)]
 
+use std::{
+    path::PathBuf,
+    thread,
+};
+
 use clap::{
     CommandFactory,
-    ErrorKind,
     Parser,
 };
 use image_recovery::{
     image,
     img::Manipulation,
     solvers,
+    RgbMatrices,
 };
 
 /// CLI wrapper for the denoising algorithm from image-recovery.
@@ -43,38 +48,47 @@ use image_recovery::{
 /// and the previous iteration's candidate output becomes
 /// smaller than the given value for the `convergence_threshold`
 #[derive(Parser, Debug)]
-#[clap(author, version, about)]
+#[command(author, version, about)]
 struct Cli {
     /// Path of input image
-    #[clap(short, long)]
-    input_image: std::path::PathBuf,
+    #[arg(short, long)]
+    input_image: PathBuf,
     /// Path of folder in which output images should be saved
-    #[clap(short, long)]
-    output_folder: std::path::PathBuf,
+    #[arg(short, long)]
+    output_folder: PathBuf,
     /// Maximum number of iterations
-    #[clap(short, long)]
+    #[arg(short, long)]
     max_iter: u32,
     /// Convergence threshold
-    #[clap(short, long)]
+    #[arg(short, long)]
     convergence_threshold: f64,
     /// Starting range for lambda values
-    #[clap(short = 's', long)]
+    #[arg(short = 's', long)]
     start_lambda: f64,
     /// End range for lambda values
-    #[clap(short = 'e', long)]
+    #[arg(short = 'e', long)]
     end_lambda: f64,
-    /// Number of steps between the lambda values
-    #[clap(short = 't', long)]
-    steps: i32,
+    /// Number of steps, i.e. lambda values to use;
+    /// Cannot be zero. `-t=1` will produce a single output
+    /// using the --start-lambda value
+    #[arg(short = 't', long)]
+    steps: std::num::NonZeroUsize,
+    /// Verbosity (from -v to -vvvv)
+    #[arg(
+        short,
+        long,
+        action = clap::ArgAction::Count,
+        value_parser = clap::value_parser!(u8).range(..=4),
+    )]
+    verbose: u8,
 }
 
-fn main() {
-    let mut args = Cli::parse();
+fn validate_args(args: &Cli) {
     let mut cmd = Cli::command();
 
     if !args.input_image.is_file() {
         cmd.error(
-            ErrorKind::ValueValidation,
+            clap::error::ErrorKind::ValueValidation,
             "`input_image` must bet a valid file",
         )
         .exit();
@@ -82,7 +96,7 @@ fn main() {
 
     if !args.output_folder.is_dir() {
         cmd.error(
-            ErrorKind::ValueValidation,
+            clap::error::ErrorKind::ValueValidation,
             "`output_path` must be a valid directory",
         )
         .exit();
@@ -90,16 +104,26 @@ fn main() {
 
     if !(args.start_lambda < args.end_lambda) {
         cmd.error(
-            ErrorKind::ValueValidation,
+            clap::error::ErrorKind::ValueValidation,
             "`start_lambda` must be smaller than `end_lambda`",
         )
         .exit();
     }
+}
 
-    if !(args.steps > 0) {
-        cmd.error(ErrorKind::ValueValidation, "`steps` must be bigger than 0")
-            .exit();
-    }
+fn main() {
+    let args = Cli::parse();
+    validate_args(&args);
+
+    let verbosity = match args.verbose {
+        0 => log::LevelFilter::Error,
+        1 => log::LevelFilter::Warn,
+        2 => log::LevelFilter::Info,
+        3 => log::LevelFilter::Debug,
+        _ => log::LevelFilter::Trace,
+    };
+    Logger::init_with_level_filter(verbosity).unwrap();
+    log::trace!("log level is TRACE");
 
     let img = image::open(&args.input_image)
         .expect("image could not be open")
@@ -109,7 +133,84 @@ fn main() {
     // of 3 matrices, one for each channel
     let img_matrices = img.to_matrices();
 
-    // choose inputs for the denoising solver:
+    // calculate `q`, the multiplier for the number of steps
+    let q = (args.end_lambda / args.start_lambda)
+        .powf(1_f64 / (args.steps.get() - 1) as f64);
+
+    // calculate the lambda(s) to use
+    let lambdas = (0..args.steps.get())
+        .map(|step| &args.start_lambda * q.powi(step as i32));
+
+    let make_output_path_for = |lambda: f64| -> PathBuf {
+        let file_name = format!(
+            "{}_lambda_=_{:.10}.png",
+            args.input_image
+                .file_prefix()
+                .unwrap_or(std::ffi::OsStr::new("img"))
+                .to_string_lossy(),
+            lambda
+        );
+        let mut output_path = args.output_folder.clone();
+        output_path.push(file_name);
+        log::info!("set output file name: {}", output_path.to_string_lossy());
+        output_path
+    };
+
+    match thread::available_parallelism() {
+        Ok(_) => {
+            let mut handles = Vec::with_capacity(lambdas.len());
+            for lambda in lambdas {
+                let img_matrices = img_matrices.clone();
+                let output_path = make_output_path_for(lambda);
+                handles.push((
+                    lambda,
+                    thread::spawn(move || {
+                        log::debug!(
+                            "spawned thread for lambda: {:.10}",
+                            lambda
+                        );
+                        denoise_and_save(
+                            &img_matrices,
+                            args.max_iter,
+                            args.convergence_threshold,
+                            lambda,
+                            &output_path,
+                        );
+                    }),
+                ));
+            }
+            for (lambda, handle) in handles {
+                log::debug!("calling join on thread for lambda: {}", lambda);
+                handle.join().expect(&format!(
+                    "thread of lambda {} has panicked",
+                    lambda
+                ));
+            }
+        },
+        Err(message) => {
+            log::warn!("no available parallelism: {}", message);
+            for lambda in lambdas {
+                let output_path = make_output_path_for(lambda);
+                denoise_and_save(
+                    &img_matrices,
+                    args.max_iter,
+                    args.convergence_threshold,
+                    lambda,
+                    &output_path,
+                );
+            }
+        },
+    };
+}
+
+fn denoise_and_save(
+    image: &RgbMatrices,
+    max_iter: u32,
+    convergence_threshold: f64,
+    lambda: f64,
+    output_file_name: &PathBuf,
+) {
+    // choose tau and sigma inputs for the denoising solver:
     // according to Chambolle, A. and Pock, T. (2011),
     // tau and lambda should be chosen such that
     // `tau * lambda * L2 norm^2 <= 1`
@@ -118,47 +219,70 @@ fn main() {
     let tau: f64 = 1.0 / 2_f64.sqrt();
     let sigma: f64 = 1_f64 / (8.0 * tau);
 
-    // calculate `q`, the multiplier for the number of steps
-    let q = (args.end_lambda / args.start_lambda)
-        .powf(1_f64 / (args.steps - 1) as f64);
+    // gamma is a variable used to update the internal
+    // state of the algorithm's variables, providing
+    // an accelerated method for convergence.
+    // Chambolle, A. and Pock, T. (2011), choose
+    // the value to be `0.35 * lambda`
+    let gamma: f64 = 0.35 * lambda;
 
-    for step in 0..args.steps {
-        // calculate the lambda to use
-        let lambda = args.start_lambda * q.powi(step);
+    // now we can call the denoising solver with the chosen variables
+    let denoised = solvers::denoise_multichannel(
+        image,
+        lambda,
+        tau,
+        sigma,
+        gamma,
+        max_iter,
+        convergence_threshold,
+    );
 
-        // gamma is a variable used to update the internal
-        // state of the algorithm's variables, providing
-        // an accelerated method for convergence.
-        // Chambolle, A. and Pock, T. (2011), choose
-        // the value to be `0.35 * lambda`
-        let gamma: f64 = 0.35 * lambda;
+    // we convert the solution into an RGB image format
+    let new_img = image::RgbImage::from_matrices(&denoised);
 
-        // now we can call the denoising solver with the chosen variables
-        let denoised = solvers::denoise_multichannel(
-            &img_matrices,
-            lambda,
-            tau,
-            sigma,
-            gamma,
-            args.max_iter,
-            args.convergence_threshold,
-        );
+    // encode it and save it to a file
+    new_img
+        .save(output_file_name)
+        .expect("image could not be saved");
+    log::info!("image saved: {}", output_file_name.to_string_lossy());
+}
 
-        // we convert the solution into an RGB image format
-        let new_img = image::RgbImage::from_matrices(&denoised);
+static LOGGER: Logger = Logger;
 
-        // encode it and save it to a file
-        let input_image_basename = args
-            .input_image
-            .file_prefix()
-            .unwrap_or(std::ffi::OsStr::new("img"))
-            .to_string_lossy();
-        let file_name =
-            format!("{}_lambda_=_{:.10}.png", input_image_basename, lambda);
-        args.output_folder.push(file_name);
+struct Logger;
 
-        new_img
-            .save(&args.output_folder)
-            .expect("image could not be saved");
+impl Logger {
+    fn init_with_level_filter(
+        log_level: log::LevelFilter,
+    ) -> Result<(), log::SetLoggerError> {
+        log::set_logger(&LOGGER)?;
+        log::set_max_level(log_level);
+        Ok(())
+    }
+}
+
+impl log::Log for Logger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        match log::max_level().to_level() {
+            Some(level) => metadata.level() <= level,
+            None => false,
+        }
+    }
+
+    fn log(&self, record: &log::Record) {
+        if self.enabled(record.metadata()) {
+            match record.level() {
+                log::Level::Error => {
+                    eprintln!("{}: {}", log::Level::Error, record.args());
+                },
+                level => {
+                    println!("{}: {}", level, record.args());
+                },
+            }
+        }
+    }
+
+    fn flush(&self) {
+        unimplemented!();
     }
 }
