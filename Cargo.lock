@@ -175,7 +175,7 @@ dependencies = [
 
 [[package]]
 name = "denoise-cli"
-version = "0.2.0"
+version = "0.2.2"
 dependencies = [
  "clap",
  "image-recovery",
@@ -307,11 +307,12 @@ dependencies = [
 
 [[package]]
 name = "image-recovery"
-version = "0.1.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f10d2aeda580388482f3a306ad852eed9ddb38520486b6d84fbf70bb17713ba6"
+checksum = "a2ae9ede91b583f8622fe4e4fada16896c68e65c3958296aeae8564794933a33"
 dependencies = [
  "image",
+ "log",
  "ndarray",
 ]
 

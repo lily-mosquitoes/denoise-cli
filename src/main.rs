@@ -26,9 +26,8 @@ use clap::{
 };
 use image_recovery::{
     image,
-    img::Manipulation,
-    solvers,
-    RgbMatrices,
+    ndarray::Array3,
+    ImageArray,
 };
 
 /// CLI wrapper for the denoising algorithm from image-recovery.
@@ -129,9 +128,8 @@ fn main() {
         .expect("image could not be open")
         .into_rgb8();
 
-    // load the RGB image into an object which is composed
-    // of 3 matrices, one for each channel
-    let img_matrices = img.to_matrices();
+    // load the RGB image into a 3D Array
+    let img_array = ImageArray::from(&img);
 
     // calculate `q`, the multiplier for the number of steps
     let q = (args.end_lambda / args.start_lambda)
@@ -160,7 +158,7 @@ fn main() {
         Ok(_) => {
             let mut handles = Vec::with_capacity(lambdas.len());
             for lambda in lambdas {
-                let img_matrices = img_matrices.clone();
+                let img_array = img_array.clone();
                 let output_path = make_output_path_for(lambda);
                 handles.push((
                     lambda,
@@ -170,7 +168,7 @@ fn main() {
                             lambda
                         );
                         denoise_and_save(
-                            &img_matrices,
+                            &img_array,
                             args.max_iter,
                             args.convergence_threshold,
                             lambda,
@@ -192,7 +190,7 @@ fn main() {
             for lambda in lambdas {
                 let output_path = make_output_path_for(lambda);
                 denoise_and_save(
-                    &img_matrices,
+                    &img_array,
                     args.max_iter,
                     args.convergence_threshold,
                     lambda,
@@ -204,7 +202,7 @@ fn main() {
 }
 
 fn denoise_and_save(
-    image: &RgbMatrices,
+    image: &ImageArray<Array3<f64>>,
     max_iter: u32,
     convergence_threshold: f64,
     lambda: f64,
@@ -227,8 +225,7 @@ fn denoise_and_save(
     let gamma: f64 = 0.35 * lambda;
 
     // now we can call the denoising solver with the chosen variables
-    let denoised = solvers::denoise_multichannel(
-        image,
+    let denoised = image.denoise(
         lambda,
         tau,
         sigma,
@@ -236,12 +233,19 @@ fn denoise_and_save(
         max_iter,
         convergence_threshold,
     );
+    let denoised = match denoised {
+        Ok(img) => img,
+        Err(error) => {
+            log::error!("denoising failed: {}", error);
+            std::process::exit(1);
+        },
+    };
 
     // we convert the solution into an RGB image format
-    let new_img = image::RgbImage::from_matrices(&denoised);
+    let denoised_img = denoised.into_rgb();
 
     // encode it and save it to a file
-    new_img
+    denoised_img
         .save(output_file_name)
         .expect("image could not be saved");
     log::info!("image saved: {}", output_file_name.to_string_lossy());
