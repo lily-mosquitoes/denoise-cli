@@ -1,6 +1,6 @@
 # Denoise-cli
 
-A command-line utility for running a multichannel denoising algorithm (from [image-recovery](https://docs.rs/image-recovery/0.1.0/image_recovery/)).
+A command-line utility for running a multichannel denoising algorithm (from [image-recovery](https://docs.rs/image-recovery/latest/image_recovery/)).
 
 ## How to use:
 
