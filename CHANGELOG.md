@@ -1,5 +1,11 @@
 # Changelog
 
+### [v0.2.2](///compare/v0.2.1...v0.2.2) (2023-08-07)
+
+#### Features
+
+* update dependecies and migrate to new format internally (5e981f2)
+
 ### [v0.2.1](///compare/v0.2.0...v0.2.1) (2023-08-07)
 
 ## [v0.2.0](///compare/v0.1.0...v0.2.0) (2023-07-21)
