@@ -72,6 +72,11 @@ struct Cli {
     /// using the --start-lambda value
     #[arg(short = 't', long)]
     steps: std::num::NonZeroUsize,
+    /// Maximum parallelism to use
+    /// If larger than the available parallelism it won't
+    /// have any effect
+    #[arg(long)]
+    max_parallelism: std::num::NonZeroUsize,
     /// Verbosity (from -v to -vvvv)
     #[arg(
         short,
@@ -158,7 +163,8 @@ fn main() {
         Ok(num) => {
             log::info!("available parallelism: {num}");
             let lambdas: Vec<f64> = lambdas.collect();
-            for chunk in lambdas.chunks(num.into()) {
+            let chunk_size = std::cmp::min(num, args.max_parallelism);
+            for chunk in lambdas.chunks(chunk_size.into()) {
                 log::debug!("processing chunk of len {}", chunk.len());
                 let mut handles = Vec::with_capacity(chunk.len());
                 for &lambda in chunk {

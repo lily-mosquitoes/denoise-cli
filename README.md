@@ -17,6 +17,9 @@ Basically, you need to supply:
 - `-m` the [m]aximum amount of iterations to run for each value of `λ`,
 - `-c` the [c]onvergence threshold for exiting the algorithm.
 
+The program will try to detect the available parallelism to run the denoising for each value of `λ` in a separate thread. By default it will spawn as many threads as there the available parallelism, but you may supply a maximum:
+- `--max-parallelism` a non zero integer for the maximum threads to spawn.
+
 Optionally you may supply the verbosity level of the output:
 - `-v` for WARN,
 - `-vv` for INFO,
