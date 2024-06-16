@@ -155,34 +155,43 @@ fn main() {
     };
 
     match thread::available_parallelism() {
-        Ok(_) => {
-            let mut handles = Vec::with_capacity(lambdas.len());
-            for lambda in lambdas {
-                let img_array = img_array.clone();
-                let output_path = make_output_path_for(lambda);
-                handles.push((
-                    lambda,
-                    thread::spawn(move || {
-                        log::debug!(
-                            "spawned thread for lambda: {:.10}",
-                            lambda
-                        );
-                        denoise_and_save(
-                            &img_array,
-                            args.max_iter,
-                            args.convergence_threshold,
-                            lambda,
-                            &output_path,
-                        );
-                    }),
-                ));
-            }
-            for (lambda, handle) in handles {
-                log::debug!("calling join on thread for lambda: {}", lambda);
-                handle.join().expect(&format!(
-                    "thread of lambda {} has panicked",
-                    lambda
-                ));
+        Ok(num) => {
+            log::info!("available parallelism: {num}");
+            let lambdas: Vec<f64> = lambdas.collect();
+            for chunk in lambdas.chunks(num.into()) {
+                log::debug!("processing chunk of len {}", chunk.len());
+                let mut handles = Vec::with_capacity(chunk.len());
+                for &lambda in chunk {
+                    let img_array = img_array.clone();
+                    let output_path = make_output_path_for(lambda);
+                    handles.push((
+                        lambda,
+                        thread::spawn(move || {
+                            log::debug!(
+                                "spawned thread for lambda: {:.10}",
+                                lambda
+                            );
+                            denoise_and_save(
+                                &img_array,
+                                args.max_iter,
+                                args.convergence_threshold,
+                                lambda,
+                                &output_path,
+                            );
+                        }),
+                    ));
+                }
+                log::debug!("waiting before next chunk");
+                for (lambda, handle) in handles {
+                    log::debug!(
+                        "calling join on thread for lambda: {}",
+                        lambda
+                    );
+                    handle.join().expect(&format!(
+                        "thread of lambda {} has panicked",
+                        lambda
+                    ));
+                }
             }
         },
         Err(message) => {
