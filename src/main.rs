@@ -75,7 +75,7 @@ struct Cli {
     /// Maximum parallelism to use
     /// If larger than the available parallelism it won't
     /// have any effect
-    #[arg(long)]
+    #[arg(long, default_value_t = std::num::NonZeroUsize::MAX)]
     max_parallelism: std::num::NonZeroUsize,
     /// Verbosity (from -v to -vvvv)
     #[arg(
